@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบคำนวณราคามังคุด</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    table, th, td { border: 1px solid #333; border-collapse: collapse; padding: 5px; text-align: center; }
+    input[type=number] { width: 80px; }
+    button { margin: 5px; padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h2>ระบบคำนวณราคามังคุด (25 สมาชิก)</h2>
+  <div>
+    ราคาต่อกก. (ต่อเบอร์):<br>
+    เบอร์ 1: <input type="number" id="price1" value="0"> ; 
+    เบอร์ 2: <input type="number" id="price2" value="0"> ; 
+    เบอร์ 3: <input type="number" id="price3" value="0"> ; 
+    เบอร์ 4: <input type="number" id="price4" value="0">
+  </div><br>
+  <table>
+    <thead>
+      <tr><th>ลำดับ</th><th>เบอร์1(กก.)</th><th>เบอร์2(กก.)</th><th>เบอร์3(กก.)</th><th>เบอร์4(กก.)</th><th>น้ำหนักรวม</th><th>ราคารวม</th></tr>
+    </thead>
+    <tbody id="data-body"></tbody>
+  </table>
+  <button onclick="calculate()">คำนวณ</button>
+  <button onclick="downloadExcel()">ดาวน์โหลด Excel</button>
+  <button onclick="sendToGoogleSheets()">ส่งไป Google Sheets</button>
+  <h3>ผลรวมทั้งหมด</h3>
+  <p id="totalWeight">น้ำหนักรวมทั้งหมด: 0 กก.</p>
+  <p id="totalPrice">ราคารวมทั้งหมด: 0 บาท</p>
+
+  <script>
+    const numMembers = 25;
+    function createRows() {
+      const t = document.getElementById('data-body');
+      for (let i = 1; i <= numMembers; i++) {
+        t.innerHTML += `
+          <tr>
+            <td>${i}</td>
+            <td><input type="number" id="w1_${i}" value="0"></td>
+            <td><input type="number" id="w2_${i}" value="0"></td>
+            <td><input type="number" id="w3_${i}" value="0"></td>
+            <td><input type="number" id="w4_${i}" value="0"></td>
+            <td id="tw_${i}">0</td>
+            <td id="tp_${i}">0</td>
+          </tr>`;
+      }
+    }
+    function calculate() {
+      const p1 = +document.getElementById('price1').value || 0;
+      const p2 = +document.getElementById('price2').value || 0;
+      const p3 = +document.getElementById('price3').value || 0;
+      const p4 = +document.getElementById('price4').value || 0;
+      let totW = 0, totP = 0;
+      for (let i = 1; i <= numMembers; i++) {
+        const w1 = +document.getElementById(`w1_${i}`).value || 0;
+        const w2 = +document.getElementById(`w2_${i}`).value || 0;
+        const w3 = +document.getElementById(`w3_${i}`).value || 0;
+        const w4 = +document.getElementById(`w4_${i}`).value || 0;
+        const sw = w1 + w2 + w3 + w4;
+        const sp = w1*p1 + w2*p2 + w3*p3 + w4*p4;
+        document.getElementById(`tw_${i}`).innerText = sw.toFixed(2);
+        document.getElementById(`tp_${i}`).innerText = sp.toFixed(2);
+        totW += sw; totP += sp;
+      }
+      document.getElementById('totalWeight').innerText = `น้ำหนักรวมทั้งหมด: ${totW.toFixed(2)} กก.`;
+      document.getElementById('totalPrice').innerText = `ราคารวมทั้งหมด: ${totP.toFixed(2)} บาท`;
+    }
+
+    function downloadExcel() {
+      const arr = [['ลำดับ','เบอร์1','เบอร์2','เบอร์3','เบอร์4','น้ำหนักรวม','ราคารวม']];
+      const p1 = +document.getElementById('price1').value||0;
+      const p2 = +document.getElementById('price2').value||0;
+      const p3 = +document.getElementById('price3').value||0;
+      const p4 = +document.getElementById('price4').value||0;
+      for(let i=1;i<=numMembers;i++){
+        const w1=+document.getElementById(`w1_${i}`).value||0;
+        const w2=+document.getElementById(`w2_${i}`).value||0;
+        const w3=+document.getElementById(`w3_${i}`).value||0;
+        const w4=+document.getElementById(`w4_${i}`).value||0;
+        const sw=w1+w2+w3+w4;
+        const sp=w1*p1+w2*p2+w3*p3+w4*p4;
+        arr.push([i,w1,w2,w3,w4,sw,sp.toFixed(2)]);
+      }
+      const ws = XLSX.utils.aoa_to_sheet(arr);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'มังคุด');
+      XLSX.writeFile(wb, 'mangosteen.xlsx');
+    }
+
+    function sendToGoogleSheets() {
+      const payload = {
+        prices: {
+          p1:+document.getElementById('price1').value||0,
+          p2:+document.getElementById('price2').value||0,
+          p3:+document.getElementById('price3').value||0,
+          p4:+document.getElementById('price4').value||0
+        },
+        data: []
+      };
+      for(let i=1;i<=numMembers;i++){
+        payload.data.push({
+          index: i,
+          w1:+document.getElementById(`w1_${i}`).value||0,
+          w2:+document.getElementById(`w2_${i}`).value||0,
+          w3:+document.getElementById(`w3_${i}`).value||0,
+          w4:+document.getElementById(`w4_${i}`).value||0
+        });
+      }
+      fetch('<<YOUR_WEBAPP_URL>>', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      })
+      .then(r=>r.text())
+      .then(t=>alert('ส่งข้อมูลเรียบร้อย:\n'+t))
+      .catch(e=>alert('เกิดข้อผิดพลาด:\n'+e));
+    }
+
+    createRows();
+  </script>
+</body>
+</html>
