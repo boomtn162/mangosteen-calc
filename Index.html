@@ -1,126 +1,688 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <title>ระบบคำนวณราคามังคุด</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    table, th, td { border: 1px solid #333; border-collapse: collapse; padding: 5px; text-align: center; }
-    input[type=number] { width: 80px; }
-    button { margin: 5px; padding: 8px 12px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>POS กลุ่มมังคุดคุณภาพ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF6F0;
+    --card:#FFFFFF;
+    --ink:#2B1B2E;
+    --ink-soft:#6B5C6C;
+    --primary:#5C2A4A;
+    --primary-dark:#3E1A33;
+    --accent:#6B8E4E;
+    --accent-gold:#D98C3B;
+    --border:#E4DCD3;
+    --danger:#B03A2E;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Sarabun',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:40px;
+  }
+  .num{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+
+  header.top{
+    background:var(--primary); color:#fff;
+    padding:18px 16px 40px;
+    position:relative;
+  }
+  header.top .brand{ display:flex; align-items:center; gap:10px; }
+  header.top .mark{
+    width:34px;height:34px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #9C5580, var(--primary-dark));
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px; flex-shrink:0;
+    box-shadow:0 0 0 3px rgba(255,255,255,0.15);
+  }
+  header.top h1{ font-size:17px; margin:0; font-weight:700; letter-spacing:.2px; }
+  header.top p{ margin:2px 0 0; font-size:12px; opacity:.85; }
+
+  .torn{
+    height:12px; margin-top:-1px;
+    background:
+      linear-gradient(-45deg, transparent 6px, var(--bg) 6px),
+      linear-gradient(45deg, transparent 6px, var(--bg) 6px);
+    background-size:12px 12px; background-repeat:repeat-x; background-position:bottom;
+  }
+
+  nav.tabs{
+    display:flex; gap:6px; margin:-28px 12px 14px; position:relative; z-index:2;
+    background:var(--card); border-radius:12px; padding:5px;
+    box-shadow:0 6px 18px rgba(60,20,45,0.15);
+  }
+  nav.tabs button{
+    flex:1; border:none; background:transparent; padding:10px 4px;
+    font-family:'Sarabun',sans-serif; font-size:13px; font-weight:600;
+    color:var(--ink-soft); border-radius:9px; cursor:pointer;
+  }
+  nav.tabs button.active{ background:var(--primary); color:#fff; }
+
+  main{ padding:0 12px; max-width:520px; margin:0 auto; }
+
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    border:1px solid var(--border);
+    padding:14px; margin-bottom:12px;
+  }
+  .card h2{ font-size:14px; margin:0 0 10px; color:var(--primary-dark); font-weight:700; }
+  label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
+  input[type=text], input[type=number], input[type=date]{
+    width:100%; padding:10px 11px; border:1.5px solid var(--border); border-radius:9px;
+    font-family:inherit; font-size:15px; background:#fff; color:var(--ink);
+  }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus{
+    outline:none; border-color:var(--primary);
+  }
+  .field{ margin-bottom:10px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .grade-row{ border-top:1px dashed var(--border); padding:12px 0; }
+  .grade-row:first-child{ border-top:none; padding-top:0; }
+  .grade-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .grade-head .gname{ font-weight:700; font-size:14.5px; color:var(--ink); }
+  .grade-head .gname .tag{
+    font-size:10.5px; color:var(--accent); font-weight:600; margin-left:6px;
+  }
+  .price-inline{ display:flex; align-items:center; gap:6px; }
+  .price-inline input{ width:78px; padding:6px 8px; font-size:14px; }
+  .price-inline span{ font-size:12px; color:var(--ink-soft); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .chip{
+    background:#F3E9EE; color:var(--primary-dark); border-radius:20px;
+    padding:5px 6px 5px 12px; font-size:13px; display:flex; align-items:center; gap:6px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .chip button{
+    border:none; background:var(--primary-dark); color:#fff; width:18px; height:18px;
+    border-radius:50%; font-size:11px; line-height:1; cursor:pointer;
+  }
+  .entry-add{ display:flex; gap:6px; }
+  .entry-add input{ flex:1; }
+  .entry-add button{
+    background:var(--accent); color:#fff; border:none; border-radius:9px;
+    padding:0 14px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .grade-foot{ display:flex; justify-content:space-between; margin-top:8px; font-size:13px; color:var(--ink-soft); }
+  .grade-foot b{ color:var(--ink); font-family:'JetBrains Mono',monospace; }
+
+  .summary-card{ background:var(--primary); color:#fff; }
+  .summary-card h2{ color:#fff; opacity:.9; }
+  .srow{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:14px; }
+  .srow.fee input{
+    width:60px; padding:5px 7px; font-size:13px; text-align:center;
+    border-radius:7px; border:none;
+  }
+  .srow .val{ font-family:'JetBrains Mono',monospace; font-weight:600; }
+  .srow.net{ border-top:1px dashed rgba(255,255,255,0.35); margin-top:6px; padding-top:12px; }
+  .srow.net .val{ font-size:21px; font-weight:700; color:var(--accent-gold); }
+
+  .actions{ display:flex; gap:10px; margin:14px 0 24px; }
+  .btn{
+    flex:1; padding:13px; border-radius:11px; border:none; font-weight:700; font-size:14.5px;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn.primary{ background:var(--accent); color:#fff; }
+  .btn.ghost{ background:#fff; color:var(--primary); border:1.5px solid var(--border); }
+  .btn.danger{ background:#fff; color:var(--danger); border:1.5px solid #F1D6D1; }
+  .btn.small{ padding:8px 12px; font-size:13px; flex:none; }
+
+  .empty{ text-align:center; padding:40px 10px; color:var(--ink-soft); font-size:14px; }
+
+  /* Settings */
+  .glist-row{ display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px dashed var(--border); }
+  .glist-row:first-of-type{ border-top:none; }
+  .glist-row input[type=text]{ flex:1; }
+  .glist-row button{
+    border:none; background:#F3E9EE; color:var(--danger); width:30px; height:30px;
+    border-radius:8px; font-size:14px; cursor:pointer; flex-shrink:0;
+  }
+  .add-grade-row{ display:flex; gap:8px; margin-top:10px; }
+  .add-grade-row input{ flex:1; }
+  .add-grade-row button{
+    background:var(--primary); color:#fff; border:none; border-radius:9px; padding:0 16px; font-weight:700; cursor:pointer;
+  }
+
+  /* History */
+  .hist-search{ margin-bottom:10px; }
+  .toggle-row{ display:flex; gap:6px; margin-bottom:12px; }
+  .toggle-row button{
+    flex:1; padding:8px; border-radius:9px; border:1.5px solid var(--border); background:#fff;
+    font-weight:600; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
+  }
+  .toggle-row button.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .receipt-item{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .receipt-item .top-line{ display:flex; justify-content:space-between; font-weight:700; font-size:14.5px; }
+  .receipt-item .sub-line{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); margin-top:3px; }
+  .receipt-item .sub-line .val{ font-family:'JetBrains Mono',monospace; color:var(--accent); font-weight:700; }
+  .member-card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:9px;
+  }
+  .member-card .name{ font-weight:700; font-size:14.5px; margin-bottom:4px; }
+  .member-card .stats{ display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft); }
+  .member-card .stats b{ display:block; font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--primary-dark); }
+
+  /* Detail / print */
+  .detail-back{ display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .detail-back button{
+    border:none; background:none; color:var(--primary); font-weight:700; font-size:14px; cursor:pointer;
+    padding:6px 0;
+  }
+  #print-area{ display:none; }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #print-area, #print-area *{ visibility:visible; }
+    #print-area{
+      display:block !important; position:absolute; top:0; left:0; width:80mm;
+      padding:3mm; font-family:'Sarabun',sans-serif; color:#000;
+    }
+    @page{ size:80mm auto; margin:0; }
+  }
+  .pr-center{ text-align:center; }
+  .pr-title{ font-size:14px; font-weight:700; }
+  .pr-sub{ font-size:10.5px; }
+  .pr-hr{ border-top:1px dashed #000; margin:6px 0; }
+  .pr-row{ display:flex; justify-content:space-between; font-size:11.5px; margin:2px 0; }
+  .pr-grade{ margin:4px 0; }
+  .pr-grade .gline{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; }
+  .pr-grade .eline{ font-size:10px; color:#333; margin-left:4px; }
+  .pr-total{ font-size:13px; font-weight:700; display:flex; justify-content:space-between; margin-top:4px; }
+
+  @media (min-width:560px){
+    main{ padding:0; }
+  }
+</style>
 </head>
 <body>
-  <h2>ระบบคำนวณราคามังคุด (25 สมาชิก)</h2>
-  <div>
-    ราคาต่อกก. (ต่อเบอร์):<br>
-    เบอร์ 1: <input type="number" id="price1" value="0"> ; 
-    เบอร์ 2: <input type="number" id="price2" value="0"> ; 
-    เบอร์ 3: <input type="number" id="price3" value="0"> ; 
-    เบอร์ 4: <input type="number" id="price4" value="0">
-  </div><br>
-  <table>
-    <thead>
-      <tr><th>ลำดับ</th><th>เบอร์1(กก.)</th><th>เบอร์2(กก.)</th><th>เบอร์3(กก.)</th><th>เบอร์4(กก.)</th><th>น้ำหนักรวม</th><th>ราคารวม</th></tr>
-    </thead>
-    <tbody id="data-body"></tbody>
-  </table>
-  <button onclick="calculate()">คำนวณ</button>
-  <button onclick="downloadExcel()">ดาวน์โหลด Excel</button>
-  <button onclick="sendToGoogleSheets()">ส่งไป Google Sheets</button>
-  <h3>ผลรวมทั้งหมด</h3>
-  <p id="totalWeight">น้ำหนักรวมทั้งหมด: 0 กก.</p>
-  <p id="totalPrice">ราคารวมทั้งหมด: 0 บาท</p>
+<div id="app"></div>
+<div id="print-area"></div>
 
-  <script>
-    const numMembers = 25;
-    function createRows() {
-      const t = document.getElementById('data-body');
-      for (let i = 1; i <= numMembers; i++) {
-        t.innerHTML += `
-          <tr>
-            <td>${i}</td>
-            <td><input type="number" id="w1_${i}" value="0"></td>
-            <td><input type="number" id="w2_${i}" value="0"></td>
-            <td><input type="number" id="w3_${i}" value="0"></td>
-            <td><input type="number" id="w4_${i}" value="0"></td>
-            <td id="tw_${i}">0</td>
-            <td id="tp_${i}">0</td>
-          </tr>`;
-      }
-    }
-    function calculate() {
-      const p1 = +document.getElementById('price1').value || 0;
-      const p2 = +document.getElementById('price2').value || 0;
-      const p3 = +document.getElementById('price3').value || 0;
-      const p4 = +document.getElementById('price4').value || 0;
-      let totW = 0, totP = 0;
-      for (let i = 1; i <= numMembers; i++) {
-        const w1 = +document.getElementById(`w1_${i}`).value || 0;
-        const w2 = +document.getElementById(`w2_${i}`).value || 0;
-        const w3 = +document.getElementById(`w3_${i}`).value || 0;
-        const w4 = +document.getElementById(`w4_${i}`).value || 0;
-        const sw = w1 + w2 + w3 + w4;
-        const sp = w1*p1 + w2*p2 + w3*p3 + w4*p4;
-        document.getElementById(`tw_${i}`).innerText = sw.toFixed(2);
-        document.getElementById(`tp_${i}`).innerText = sp.toFixed(2);
-        totW += sw; totP += sp;
-      }
-      document.getElementById('totalWeight').innerText = `น้ำหนักรวมทั้งหมด: ${totW.toFixed(2)} กก.`;
-      document.getElementById('totalPrice').innerText = `ราคารวมทั้งหมด: ${totP.toFixed(2)} บาท`;
-    }
+<script>
+/* ---------------- State & storage ---------------- */
+const state = { tab:'new', config:null, receipts:[], draft:null, viewId:null, historyMode:'list', search:'' };
 
-    function downloadExcel() {
-      const arr = [['ลำดับ','เบอร์1','เบอร์2','เบอร์3','เบอร์4','น้ำหนักรวม','ราคารวม']];
-      const p1 = +document.getElementById('price1').value||0;
-      const p2 = +document.getElementById('price2').value||0;
-      const p3 = +document.getElementById('price3').value||0;
-      const p4 = +document.getElementById('price4').value||0;
-      for(let i=1;i<=numMembers;i++){
-        const w1=+document.getElementById(`w1_${i}`).value||0;
-        const w2=+document.getElementById(`w2_${i}`).value||0;
-        const w3=+document.getElementById(`w3_${i}`).value||0;
-        const w4=+document.getElementById(`w4_${i}`).value||0;
-        const sw=w1+w2+w3+w4;
-        const sp=w1*p1+w2*p2+w3*p3+w4*p4;
-        arr.push([i,w1,w2,w3,w4,sw,sp.toFixed(2)]);
-      }
-      const ws = XLSX.utils.aoa_to_sheet(arr);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'มังคุด');
-      XLSX.writeFile(wb, 'mangosteen.xlsx');
-    }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
-    function sendToGoogleSheets() {
-      const payload = {
-        prices: {
-          p1:+document.getElementById('price1').value||0,
-          p2:+document.getElementById('price2').value||0,
-          p3:+document.getElementById('price3').value||0,
-          p4:+document.getElementById('price4').value||0
-        },
-        data: []
-      };
-      for(let i=1;i<=numMembers;i++){
-        payload.data.push({
-          index: i,
-          w1:+document.getElementById(`w1_${i}`).value||0,
-          w2:+document.getElementById(`w2_${i}`).value||0,
-          w3:+document.getElementById(`w3_${i}`).value||0,
-          w4:+document.getElementById(`w4_${i}`).value||0
-        });
-      }
-      fetch('<<YOUR_WEBAPP_URL>>', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      })
-      .then(r=>r.text())
-      .then(t=>alert('ส่งข้อมูลเรียบร้อย:\n'+t))
-      .catch(e=>alert('เกิดข้อผิดพลาด:\n'+e));
-    }
+function defaultConfig(){
+  return {
+    groupName:'บูมกลุ่มมังคุดคุณภาพ',
+    groupAddr:'ม.4 ต.เกาะขันธ์ อ.ชะอวด จ.นครศรีธรรมราช',
+    groupPhone:'089-8799939',
+    feePerKg:2,
+    grades:[
+      {id:uid(), name:'เบอร์ 1', lastPrice:0},
+      {id:uid(), name:'เบอร์ 2', lastPrice:0},
+      {id:uid(), name:'เบอร์ 3', lastPrice:0},
+      {id:uid(), name:'เบอร์ 4', lastPrice:0},
+      {id:uid(), name:'เบอร์ดำ', lastPrice:0},
+      {id:uid(), name:'เบอร์มันลาย', lastPrice:0},
+      {id:uid(), name:'เบอร์กากใหญ่', lastPrice:0},
+    ]
+  };
+}
 
-    createRows();
-  </script>
+async function loadData(){
+  try{
+    const c = await window.storage.get('pos-config');
+    state.config = c ? JSON.parse(c.value) : defaultConfig();
+  }catch(e){ state.config = defaultConfig(); }
+  try{
+    const r = await window.storage.get('pos-receipts');
+    state.receipts = r ? JSON.parse(r.value) : [];
+  }catch(e){ state.receipts = []; }
+  resetDraft();
+  render();
+}
+async function saveConfig(){
+  try{ await window.storage.set('pos-config', JSON.stringify(state.config), false); }
+  catch(e){ console.error('save config failed', e); }
+}
+async function saveReceiptsList(){
+  try{ await window.storage.set('pos-receipts', JSON.stringify(state.receipts), false); }
+  catch(e){ console.error('save receipts failed', e); }
+}
+
+function resetDraft(){
+  state.draft = {
+    ownerName:'',
+    date:new Date().toISOString().slice(0,10),
+    feePerKg:state.config.feePerKg,
+    grades:state.config.grades.map(g=>({gradeId:g.id, name:g.name, price:g.lastPrice||0, entries:[]}))
+  };
+}
+
+/* ---------------- Calculations ---------------- */
+function gradeWeight(dg){ return dg.entries.reduce((s,w)=>s+w,0); }
+function gradeAmount(dg){ return Math.round(gradeWeight(dg)*(dg.price||0)); }
+function draftTotals(d){
+  let totalWeight=0, totalAmount=0;
+  d.grades.forEach(dg=>{ totalWeight+=gradeWeight(dg); totalAmount+=gradeAmount(dg); });
+  const fee = Math.round(totalWeight*(d.feePerKg||0));
+  const net = totalAmount - fee;
+  return {totalWeight, totalAmount, fee, net};
+}
+
+const THAI_MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function formatThaiDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  const day = d.getDate();
+  const month = THAI_MONTHS[d.getMonth()];
+  const yearBE = d.getFullYear()+543;
+  return day+' '+month+' '+yearBE;
+}
+function fmtNum(n){ return (Math.round(n*100)/100).toLocaleString('th-TH'); }
+
+/* ---------------- Render ---------------- */
+function render(){
+  const app=document.getElementById('app');
+  app.innerHTML = renderHeader() + '<main>' + (
+    state.tab==='new' ? renderNew() :
+    state.tab==='settings' ? renderSettings() :
+    state.tab==='history' ? renderHistory() :
+    state.tab==='detail' ? renderDetail() : ''
+  ) + '</main>';
+}
+
+function renderHeader(){
+  const tabs=[['new','บันทึกใบเสร็จ'],['history','ประวัติ/รายงาน'],['settings','ตั้งค่า']];
+  return `
+  <header class="top">
+    <div class="brand">
+      <div class="mark">🟣</div>
+      <div>
+        <h1>${state.config.groupName}</h1>
+        <p>${state.config.groupAddr} • โทร ${state.config.groupPhone}</p>
+      </div>
+    </div>
+  </header>
+  <div class="torn"></div>
+  <nav class="tabs">
+    ${tabs.map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="${state.tab===id||(state.tab==='detail'&&id==='history')?'active':''}">${label}</button>`).join('')}
+  </nav>`;
+}
+
+function renderNew(){
+  const d = state.draft;
+  const t = draftTotals(d);
+  const owners = [...new Set(state.receipts.map(r=>r.ownerName))];
+  return `
+  <div class="card">
+    <h2>ข้อมูลใบเสร็จ</h2>
+    <div class="row2">
+      <div class="field">
+        <label>ชื่อเจ้าของสวน</label>
+        <input list="owners" type="text" data-field="ownerName" value="${escapeAttr(d.ownerName)}" placeholder="ชื่อ-สกุล">
+        <datalist id="owners">${owners.map(o=>`<option value="${escapeAttr(o)}">`).join('')}</datalist>
+      </div>
+      <div class="field">
+        <label>วันที่</label>
+        <input type="date" data-field="date" value="${d.date}">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>รายละเอียด (กก.) แต่ละเบอร์</h2>
+    ${d.grades.map(dg=>{
+      const w = gradeWeight(dg), amt = gradeAmount(dg);
+      return `
+      <div class="grade-row" data-grade="${dg.gradeId}">
+        <div class="grade-head">
+          <div class="gname">${dg.name}${w>0?`<span class="tag">${fmtNum(w)} กก.</span>`:''}</div>
+          <div class="price-inline">
+            <span>ราคา/กก.</span>
+            <input type="number" inputmode="decimal" step="0.01" min="0" data-action="price" data-grade="${dg.gradeId}" value="${dg.price||''}" placeholder="0">
+          </div>
+        </div>
+        <div class="chips">
+          ${dg.entries.map((val,idx)=>`<span class="chip">${fmtNum(val)}<button data-action="rmEntry" data-grade="${dg.gradeId}" data-idx="${idx}">×</button></span>`).join('')}
+        </div>
+        <div class="entry-add">
+          <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="ชั่งน้ำหนัก (กก.)" data-entry-input="${dg.gradeId}">
+          <button data-action="addEntry" data-grade="${dg.gradeId}">+ เพิ่ม</button>
+        </div>
+        <div class="grade-foot">
+          <span>รวมน้ำหนัก <b class="num">${fmtNum(w)}</b> กก.</span>
+          <span>จำนวนเงิน <b class="num">${fmtNum(amt)}</b> บาท</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="card summary-card">
+    <h2>สรุปยอด</h2>
+    <div class="srow"><span>น้ำหนักรวม</span><span class="val num">${fmtNum(t.totalWeight)} กก.</span></div>
+    <div class="srow"><span>รวมเงิน</span><span class="val num">${fmtNum(t.totalAmount)} บาท</span></div>
+    <div class="srow fee"><span>หักค่าบริการ กก.ละ <input type="number" step="0.01" min="0" data-field="feePerKg" value="${d.feePerKg}"> บาท</span><span class="val num">${fmtNum(t.fee)} บาท</span></div>
+    <div class="srow net"><span>รวมเงินทั้งหมด</span><span class="val num">${fmtNum(t.net)} บาท</span></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn ghost" data-action="clearDraft">ล้างข้อมูล</button>
+    <button class="btn primary" data-action="saveReceipt">บันทึก &amp; พิมพ์</button>
+  </div>`;
+}
+
+function renderSettings(){
+  const c = state.config;
+  return `
+  <div class="card">
+    <h2>ข้อมูลกลุ่ม (แสดงบนใบเสร็จ)</h2>
+    <div class="field"><label>ชื่อกลุ่ม</label><input type="text" data-cfg="groupName" value="${escapeAttr(c.groupName)}"></div>
+    <div class="field"><label>ที่อยู่</label><input type="text" data-cfg="groupAddr" value="${escapeAttr(c.groupAddr)}"></div>
+    <div class="field"><label>เบอร์โทร</label><input type="text" data-cfg="groupPhone" value="${escapeAttr(c.groupPhone)}"></div>
+  </div>
+
+  <div class="card">
+    <h2>ค่าบริการเริ่มต้น (บาท/กก.)</h2>
+    <input type="number" step="0.01" min="0" data-cfg="feePerKg" value="${c.feePerKg}" style="max-width:120px">
+  </div>
+
+  <div class="card">
+    <h2>รายการเบอร์มังคุด</h2>
+    ${c.grades.map(g=>`
+      <div class="glist-row" data-grade="${g.id}">
+        <input type="text" data-action="gradeName" data-grade="${g.id}" value="${escapeAttr(g.name)}">
+        <button data-action="rmGrade" data-grade="${g.id}">×</button>
+      </div>`).join('')}
+    <div class="add-grade-row">
+      <input type="text" id="newGradeName" placeholder="ชื่อเบอร์ใหม่ เช่น เบอร์ 5">
+      <button data-action="addGrade">เพิ่มเบอร์</button>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--ink-soft);padding:0 4px 20px;">การแก้ไขรายการเบอร์จะมีผลกับใบเสร็จใหม่เท่านั้น ไม่กระทบใบเสร็จที่บันทึกไว้แล้ว</p>`;
+}
+
+function renderHistory(){
+  const q = state.search.trim().toLowerCase();
+  let list = state.receipts.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  if(q) list = list.filter(r=>r.ownerName.toLowerCase().includes(q));
+
+  if(state.historyMode==='members'){
+    const map={};
+    list.forEach(r=>{
+      if(!map[r.ownerName]) map[r.ownerName]={name:r.ownerName, count:0, weight:0, net:0};
+      map[r.ownerName].count++; map[r.ownerName].weight+=r.totalWeight; map[r.ownerName].net+=r.net;
+    });
+    const members = Object.values(map).sort((a,b)=>b.net-a.net);
+    return `
+    <div class="card hist-search"><input type="text" placeholder="ค้นหาชื่อเจ้าของสวน" data-action="search" value="${escapeAttr(state.search)}"></div>
+    ${toggleRow()}
+    ${members.length? members.map(m=>`
+      <div class="member-card">
+        <div class="name">${escapeHtml(m.name)}</div>
+        <div class="stats">
+          <div>ครั้ง<b>${m.count}</b></div>
+          <div>น้ำหนักรวม<b>${fmtNum(m.weight)} กก.</b></div>
+          <div>รับสุทธิรวม<b>${fmtNum(m.net)} บาท</b></div>
+        </div>
+      </div>`).join('') : `<div class="empty">ยังไม่มีข้อมูล</div>`}
+    `;
+  }
+
+  return `
+  <div class="card hist-search"><input type="text" placeholder="ค้นหาชื่อเจ้าของสวน" data-action="search" value="${escapeAttr(state.search)}"></div>
+  ${toggleRow()}
+  ${list.length? list.map(r=>`
+    <div class="receipt-item" data-action="viewReceipt" data-id="${r.id}">
+      <div class="top-line"><span>${escapeHtml(r.ownerName)}</span><span>${formatThaiDate(r.date)}</span></div>
+      <div class="sub-line"><span>${fmtNum(r.totalWeight)} กก.</span><span class="val">${fmtNum(r.net)} บาท</span></div>
+    </div>`).join('') : `<div class="empty">ยังไม่มีใบเสร็จที่บันทึกไว้</div>`}
+  `;
+}
+function toggleRow(){
+  return `<div class="toggle-row">
+    <button data-action="histMode" data-mode="list" class="${state.historyMode==='list'?'active':''}">รายการใบเสร็จ</button>
+    <button data-action="histMode" data-mode="members" class="${state.historyMode==='members'?'active':''}">สรุปรายบุคคล</button>
+  </div>`;
+}
+
+function renderDetail(){
+  const r = state.receipts.find(x=>x.id===state.viewId);
+  if(!r) return `<div class="empty">ไม่พบใบเสร็จ</div>`;
+  return `
+  <div class="detail-back"><button data-action="backHistory">‹ กลับ</button></div>
+  <div class="card">
+    <h2>ใบเสร็จ — ${escapeHtml(r.ownerName)}</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin-top:-6px;">วันที่ ${formatThaiDate(r.date)}</p>
+    ${r.grades.filter(g=>g.weight>0).map(g=>`
+      <div class="grade-row">
+        <div class="grade-head"><div class="gname">${escapeHtml(g.name)}</div><div class="num">${fmtNum(g.price)} บ./กก.</div></div>
+        <div class="grade-foot"><span>${fmtNum(g.weight)} กก.</span><span class="num">${fmtNum(g.amount)} บาท</span></div>
+      </div>`).join('')}
+  </div>
+  <div class="card summary-card">
+    <div class="srow"><span>น้ำหนักรวม</span><span class="val num">${fmtNum(r.totalWeight)} กก.</span></div>
+    <div class="srow"><span>รวมเงิน</span><span class="val num">${fmtNum(r.totalAmount)} บาท</span></div>
+    <div class="srow"><span>หักค่าบริการ (${fmtNum(r.feePerKg)} บ./กก.)</span><span class="val num">${fmtNum(r.fee)} บาท</span></div>
+    <div class="srow net"><span>รวมเงินทั้งหมด</span><span class="val num">${fmtNum(r.net)} บาท</span></div>
+  </div>
+  <div class="actions">
+    <button class="btn danger" data-action="deleteReceipt" data-id="${r.id}">ลบใบเสร็จ</button>
+    <button class="btn primary" data-action="printExisting" data-id="${r.id}">พิมพ์ใบเสร็จ</button>
+  </div>`;
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* ---------------- Printing ---------------- */
+function buildPrintHtml(r){
+  return `
+  <div class="pr-center">
+    <div class="pr-title">${escapeHtml(state.config.groupName)}</div>
+    <div class="pr-sub">${escapeHtml(state.config.groupAddr)}</div>
+    <div class="pr-sub">โทร ${escapeHtml(state.config.groupPhone)}</div>
+    <div class="pr-sub" style="margin-top:3px;">ใบเสร็จรับเงิน (สมาชิกกลุ่ม)</div>
+  </div>
+  <div class="pr-hr"></div>
+  <div class="pr-row"><span>เจ้าของสวน</span><span>${escapeHtml(r.ownerName)}</span></div>
+  <div class="pr-row"><span>วันที่</span><span>${formatThaiDate(r.date)}</span></div>
+  <div class="pr-hr"></div>
+  ${r.grades.filter(g=>g.weight>0).map(g=>`
+    <div class="pr-grade">
+      <div class="gline"><span>${escapeHtml(g.name)}</span><span>${fmtNum(g.amount)} บ.</span></div>
+      <div class="eline">${fmtNum(g.weight)} กก. x ${fmtNum(g.price)} บ./กก. ${g.entries&&g.entries.length>1? '('+g.entries.map(fmtNum).join('+')+')':''}</div>
+    </div>`).join('')}
+  <div class="pr-hr"></div>
+  <div class="pr-row"><span>น้ำหนักรวม</span><span>${fmtNum(r.totalWeight)} กก.</span></div>
+  <div class="pr-row"><span>รวมเงิน</span><span>${fmtNum(r.totalAmount)} บาท</span></div>
+  <div class="pr-row"><span>หักค่าบริการ (${fmtNum(r.feePerKg)} บ./กก.)</span><span>-${fmtNum(r.fee)} บาท</span></div>
+  <div class="pr-hr"></div>
+  <div class="pr-total"><span>รวมเงินทั้งหมด</span><span>${fmtNum(r.net)} บาท</span></div>
+  <div class="pr-center" style="margin-top:10px;font-size:10px;">ขอบคุณที่ร่วมกับกลุ่มของเรา</div>
+  `;
+}
+function doPrint(r){
+  document.getElementById('print-area').innerHTML = buildPrintHtml(r);
+  setTimeout(()=>window.print(), 50);
+}
+
+/* ---------------- Actions ---------------- */
+async function saveReceipt(){
+  const d = state.draft;
+  if(!d.ownerName.trim()){ alert('กรุณากรอกชื่อเจ้าของสวน'); return; }
+  const t = draftTotals(d);
+  if(t.totalWeight<=0){ alert('กรุณาบันทึกน้ำหนักอย่างน้อย 1 เบอร์'); return; }
+
+  const receipt = {
+    id:uid(),
+    ownerName:d.ownerName.trim(),
+    date:d.date,
+    feePerKg:d.feePerKg,
+    grades:d.grades.map(dg=>({name:dg.name, price:dg.price, entries:dg.entries.slice(), weight:gradeWeight(dg), amount:gradeAmount(dg)})),
+    totalWeight:t.totalWeight, totalAmount:t.totalAmount, fee:t.fee, net:t.net,
+    createdAt:Date.now()
+  };
+  state.receipts.push(receipt);
+  await saveReceiptsList();
+
+  // remember last prices used
+  d.grades.forEach(dg=>{
+    const g = state.config.grades.find(x=>x.id===dg.gradeId);
+    if(g && dg.price) g.lastPrice = dg.price;
+  });
+  await saveConfig();
+
+  resetDraft();
+  doPrint(receipt);
+  render();
+}
+
+document.addEventListener('click', async (e)=>{
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  const action = el.dataset.action;
+
+  if(action==='tab'){ state.tab = el.dataset.tab; render(); return; }
+  if(action==='clearDraft'){ if(confirm('ล้างข้อมูลใบเสร็จปัจจุบัน?')){ resetDraft(); render(); } return; }
+  if(action==='saveReceipt'){ await saveReceipt(); return; }
+
+  if(action==='addEntry'){
+    const gid = el.dataset.grade;
+    const input = document.querySelector(`[data-entry-input="${gid}"]`);
+    const v = parseFloat(input.value);
+    if(!isNaN(v) && v>0){
+      const dg = state.draft.grades.find(x=>x.gradeId===gid);
+      dg.entries.push(v);
+      input.value='';
+      render();
+      const again = document.querySelector(`[data-entry-input="${gid}"]`);
+      if(again) again.focus();
+    }
+    return;
+  }
+  if(action==='rmEntry'){
+    const gid = el.dataset.grade, idx = parseInt(el.dataset.idx);
+    const dg = state.draft.grades.find(x=>x.gradeId===gid);
+    dg.entries.splice(idx,1);
+    render();
+    return;
+  }
+
+  if(action==='histMode'){ state.historyMode = el.dataset.mode; render(); return; }
+  if(action==='viewReceipt'){ state.viewId = el.dataset.id; state.tab='detail'; render(); return; }
+  if(action==='backHistory'){ state.tab='history'; render(); return; }
+  if(action==='printExisting'){
+    const r = state.receipts.find(x=>x.id===el.dataset.id);
+    if(r) doPrint(r);
+    return;
+  }
+  if(action==='deleteReceipt'){
+    if(confirm('ยืนยันการลบใบเสร็จนี้? ไม่สามารถกู้คืนได้')){
+      state.receipts = state.receipts.filter(x=>x.id!==el.dataset.id);
+      await saveReceiptsList();
+      state.tab='history'; render();
+    }
+    return;
+  }
+
+  if(action==='addGrade'){
+    const input = document.getElementById('newGradeName');
+    const name = input.value.trim();
+    if(name){
+      state.config.grades.push({id:uid(), name, lastPrice:0});
+      await saveConfig();
+      render();
+    }
+    return;
+  }
+  if(action==='rmGrade'){
+    if(confirm('ลบเบอร์นี้ออกจากรายการ?')){
+      state.config.grades = state.config.grades.filter(g=>g.id!==el.dataset.grade);
+      await saveConfig();
+      render();
+    }
+    return;
+  }
+});
+
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' && e.target.matches('[data-entry-input]')){
+    e.preventDefault();
+    const gid = e.target.dataset.entryInput;
+    const btn = document.querySelector(`[data-action="addEntry"][data-grade="${gid}"]`);
+    if(btn) btn.click();
+  }
+  if(e.key==='Enter' && e.target.id==='newGradeName'){
+    e.preventDefault();
+    document.querySelector('[data-action="addGrade"]').click();
+  }
+});
+
+document.addEventListener('input', (e)=>{
+  const t = e.target;
+  if(t.dataset.field==='ownerName'){ state.draft.ownerName = t.value; return; }
+  if(t.dataset.field==='date'){ state.draft.date = t.value; return; }
+  if(t.dataset.field==='feePerKg'){ state.draft.feePerKg = parseFloat(t.value)||0; refreshSummaryOnly(); return; }
+  if(t.dataset.action==='price'){
+    const gid = t.dataset.grade;
+    const dg = state.draft.grades.find(x=>x.gradeId===gid);
+    dg.price = parseFloat(t.value)||0;
+    refreshSummaryOnly();
+    return;
+  }
+  if(t.dataset.action==='search'){ state.search = t.value; render(); return; }
+  if(t.dataset.action==='gradeName'){
+    const g = state.config.grades.find(x=>x.id===t.dataset.grade);
+    if(g){ g.name = t.value; saveConfig(); }
+    return;
+  }
+  if(t.dataset.cfg){
+    const key=t.dataset.cfg;
+    state.config[key] = (key==='feePerKg')? (parseFloat(t.value)||0) : t.value;
+    saveConfig();
+    return;
+  }
+});
+
+// Lightweight partial refresh for price/fee inputs so focus isn't lost while typing
+function refreshSummaryOnly(){
+  const t = draftTotals(state.draft);
+  const app = document.getElementById('app');
+  const netEl = app.querySelector('.srow.net .val');
+  if(netEl) netEl.textContent = fmtNum(t.net)+' บาท';
+  const rows = app.querySelectorAll('.summary-card .srow .val');
+  if(rows.length>=4){
+    rows[0].textContent = fmtNum(t.totalWeight)+' กก.';
+    rows[1].textContent = fmtNum(t.totalAmount)+' บาท';
+    rows[2].textContent = fmtNum(t.fee)+' บาท';
+  }
+  document.querySelectorAll('.grade-row').forEach(row=>{
+    const gid = row.dataset.grade;
+    const dg = state.draft.grades.find(x=>x.gradeId===gid);
+    if(!dg) return;
+    const w = gradeWeight(dg), amt = gradeAmount(dg);
+    const foot = row.querySelector('.grade-foot');
+    if(foot){
+      foot.children[0].innerHTML = `รวมน้ำหนัก <b class="num">${fmtNum(w)}</b> กก.`;
+      foot.children[1].innerHTML = `จำนวนเงิน <b class="num">${fmtNum(amt)}</b> บาท`;
+    }
+    const tag = row.querySelector('.gname');
+    if(tag) tag.innerHTML = `${escapeHtml(dg.name)}${w>0?`<span class="tag">${fmtNum(w)} กก.</span>`:''}`;
+  });
+}
+
+document.addEventListener('change', (e)=>{
+  // ensure final value committed (in case input listener missed a case, e.g. date picker)
+  const t = e.target;
+  if(t.dataset.field==='date'){ state.draft.date = t.value; }
+});
+
+loadData();
+</script>
 </body>
 </html>
