@@ -904,7 +904,11 @@ function prepareThermalPrint(){
 function doPrint(r){
   prepareThermalPrint();
   document.getElementById('print-area').innerHTML = buildPrintHtml(r);
-  setTimeout(()=>window.print(), 50);
+  // Call print() synchronously, not via setTimeout: iOS Safari only honors
+  // window.print() when it runs directly inside the user's tap - deferring it
+  // even by a few ms drops the "user activation" and silently blocks the
+  // print sheet from opening (no error, it just does nothing).
+  window.print();
 }
 
 function shareReceipt(r){
@@ -961,7 +965,7 @@ function buildPrintReportHtml(dateStr){
 function doPrintReport(dateStr){
   prepareThermalPrint();
   document.getElementById('print-area').innerHTML = buildPrintReportHtml(dateStr);
-  setTimeout(()=>window.print(), 50);
+  window.print();
 }
 
 function buildPrintMonthlyHtml(monthStr){
@@ -990,7 +994,7 @@ function buildPrintMonthlyHtml(monthStr){
 function doPrintMonthly(monthStr){
   prepareThermalPrint();
   document.getElementById('print-area').innerHTML = buildPrintMonthlyHtml(monthStr);
-  setTimeout(()=>window.print(), 50);
+  window.print();
 }
 
 function showToast(msg){
@@ -1076,7 +1080,7 @@ async function doPrintSelectedA4(ids){
   area.classList.add('mode-a4');
   area.innerHTML = images.map((src,idx)=>`<img class="a4-page-img" src="${src}" style="page-break-after:${idx<images.length-1?'always':'auto'};">`).join('');
   hideToast();
-  setTimeout(()=>window.print(), 100);
+  window.print();
 }
 
 function exportMonthlyCsv(monthStr){
@@ -1215,13 +1219,18 @@ async function saveReceipt(){
   };
   state.receipts.push(receipt);
   state.config.nextReceiptNo = (state.config.nextReceiptNo||1) + 1;
-  await saveReceiptsList();
-  await saveConfig();
-  if(state.cloudUrl){ cloudPost({action:'addReceipt', receipt}).catch(e=>{ console.error('cloud add failed',e); showToastTemp('บันทึกขึ้น Google Sheets ไม่สำเร็จ (บันทึกในเครื่องแล้ว)'); }); }
 
+  // Print first, before any 'await' - iOS Safari only allows window.print() to
+  // open while still inside the synchronous call stack of the user's tap. Once
+  // this function awaits anything, that activation is gone and print() would
+  // silently do nothing. Saving to storage/cloud can safely happen after.
   resetDraft();
   doPrint(receipt);
   render();
+
+  await saveReceiptsList();
+  await saveConfig();
+  if(state.cloudUrl){ cloudPost({action:'addReceipt', receipt}).catch(e=>{ console.error('cloud add failed',e); showToastTemp('บันทึกขึ้น Google Sheets ไม่สำเร็จ (บันทึกในเครื่องแล้ว)'); }); }
 }
 
 function startEditReceipt(id){
