@@ -268,7 +268,7 @@
 // of any device, no need to paste the link manually. Users can still change/clear it in Settings.
 const DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbyS30NJofUexxXUWqSKladMO3Z4oww45KNftfelltrswFm0s_XvJFLNfr1uFxJJATe5/exec';
 
-const state = { tab:'new', config:null, receipts:[], draft:null, viewId:null, historyMode:'list', search:'', reportDate:todayLocalISO(), reportMonth:todayLocalMonth(), selectMode:false, selectedIds:[], showDateFilter:false, filterFrom:'', filterTo:'', cloudUrl:'', cloudStatus:'idle' };
+const state = { tab:'new', config:null, receipts:[], draft:null, viewId:null, historyMode:'list', search:'', reportDate:todayLocalISO(), reportFrom:firstDayOfMonthISO(), reportTo:todayLocalISO(), selectMode:false, selectedIds:[], showDateFilter:false, filterFrom:'', filterTo:'', cloudUrl:'', cloudStatus:'idle' };
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
@@ -300,9 +300,9 @@ function todayLocalISO(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function todayLocalMonth(){
+function firstDayOfMonthISO(){
   const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';
 }
 
 const PRESET_MEMBER_NAMES = ["อดใจ","ละออ","มุกดา","กาญจนา","เจษฎาพร","สมศรี","สาว","ประคอง","อุไร","อุบล","สายชล","ประนอม","อำนวย","เรืองฤทธิ์","สุพัตรา","ภักดี","ไพศาล","อัญชลี","วิภาวดี","เมทยา","นิรชา","เยาวรัตน์"];
@@ -471,9 +471,8 @@ function formatThaiDate(iso){
 }
 function fmtNum(n){ return (Math.round(n*100)/100).toLocaleString('th-TH'); }
 function formatReceiptNo(n){ return '#'+String(n||0).padStart(4,'0'); }
-function formatThaiMonth(monthStr){
-  const [y,m] = monthStr.split('-').map(Number);
-  return THAI_MONTHS[m-1]+' '+(y+543);
+function formatDateRangeThai(fromDate, toDate){
+  return fromDate===toDate ? formatThaiDate(fromDate) : formatThaiDate(fromDate)+' - '+formatThaiDate(toDate);
 }
 
 /* ---------------- Render ---------------- */
@@ -794,8 +793,8 @@ function renderDaily(){
   `;
 }
 
-function computeMonthly(monthStr){
-  const receipts = state.receipts.filter(r=>r.date.startsWith(monthStr)).sort((a,b)=>a.createdAt-b.createdAt);
+function computeRangeReport(fromDate, toDate){
+  const receipts = state.receipts.filter(r=>r.date>=fromDate && r.date<=toDate).sort((a,b)=>a.createdAt-b.createdAt);
   const gradeTotals = {};
   const ownerTotals = {};
   let totalWeight=0, totalAmount=0, totalFee=0, totalNet=0;
@@ -813,18 +812,21 @@ function computeMonthly(monthStr){
 }
 
 function renderMonthly(){
-  const monthStr = state.reportMonth;
-  const rep = computeMonthly(monthStr);
+  const fromDate = state.reportFrom, toDate = state.reportTo;
+  const rep = computeRangeReport(fromDate, toDate);
   const owners = Object.values(rep.ownerTotals).sort((a,b)=>b.net-a.net);
   return `
   <div class="card hist-search"><input type="text" placeholder="ค้นหาชื่อเจ้าของสวน" data-action="search" value="${escapeAttr(state.search)}"></div>
   ${toggleRow()}
   <div class="card">
-    <h2>เลือกเดือนที่ต้องการออกรายงาน</h2>
-    <input type="month" data-action="reportMonth" value="${monthStr}">
+    <h2>เลือกช่วงวันที่ต้องการออกรายงาน</h2>
+    <div class="row2">
+      <div class="field"><label>จากวันที่</label><input type="date" data-action="reportFrom" value="${fromDate}" max="${toDate}"></div>
+      <div class="field"><label>ถึงวันที่</label><input type="date" data-action="reportTo" value="${toDate}" min="${fromDate}"></div>
+    </div>
   </div>
   <div class="card">
-    <h2>สรุปรายบุคคลเดือน ${formatThaiMonth(monthStr)}</h2>
+    <h2>สรุปรายบุคคล ${formatDateRangeThai(fromDate, toDate)}</h2>
     ${owners.length? owners.map(m=>`
       <div class="member-card">
         <div class="name">${escapeHtml(m.name)}</div>
@@ -833,11 +835,11 @@ function renderMonthly(){
           <div>น้ำหนักรวม<b>${fmtNum(m.weight)} กก.</b></div>
           <div>รับสุทธิรวม<b>${fmtNum(m.net)} บาท</b></div>
         </div>
-      </div>`).join('') : `<div class="empty">ยังไม่มีใบเสร็จของเดือนนี้</div>`}
+      </div>`).join('') : `<div class="empty">ยังไม่มีใบเสร็จในช่วงวันที่นี้</div>`}
   </div>
   ${owners.length? `
   <div class="card">
-    <h2>รวมตามเบอร์ทั้งเดือน</h2>
+    <h2>รวมตามเบอร์</h2>
     ${Object.keys(rep.gradeTotals).map(name=>`
       <div class="grade-foot" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:4px;">
         <span>${escapeHtml(name)}</span>
@@ -849,11 +851,11 @@ function renderMonthly(){
     <div class="srow"><span>น้ำหนักรวม</span><span class="val num">${fmtNum(rep.totalWeight)} กก.</span></div>
     <div class="srow"><span>รวมเงิน</span><span class="val num">${fmtNum(rep.totalAmount)} บาท</span></div>
     <div class="srow"><span>ค่าบริการรวม</span><span class="val num">${fmtNum(rep.totalFee)} บาท</span></div>
-    <div class="srow net"><span>สุทธิรวมทั้งเดือน</span><span class="val num">${fmtNum(rep.totalNet)} บาท</span></div>
+    <div class="srow net"><span>สุทธิรวมทั้งช่วง</span><span class="val num">${fmtNum(rep.totalNet)} บาท</span></div>
   </div>
   <div class="actions">
-    <button class="btn ghost" data-action="exportMonthlyCsv" data-month="${monthStr}">Export CSV</button>
-    <button class="btn primary" data-action="printMonthly" data-month="${monthStr}">พิมพ์รายงาน</button>
+    <button class="btn ghost" data-action="exportMonthlyCsv" data-from="${fromDate}" data-to="${toDate}">Export CSV</button>
+    <button class="btn primary" data-action="printMonthly" data-from="${fromDate}" data-to="${toDate}">พิมพ์รายงาน</button>
   </div>` : ''}
   `;
 }
@@ -1023,8 +1025,8 @@ function doPrintReport(dateStr){
   window.print();
 }
 
-function buildPrintMonthlyHtml(monthStr){
-  const rep = computeMonthly(monthStr);
+function buildPrintMonthlyHtml(fromDate, toDate){
+  const rep = computeRangeReport(fromDate, toDate);
   const owners = Object.values(rep.ownerTotals).sort((a,b)=>b.net-a.net);
   const gradeNames = Object.keys(rep.gradeTotals);
   return `
@@ -1032,7 +1034,7 @@ function buildPrintMonthlyHtml(monthStr){
     <div class="name">${escapeHtml(state.config.groupName)}</div>
     <div class="addr">${escapeHtml(state.config.groupAddr)} • โทร ${escapeHtml(state.config.groupPhone)}</div>
     <div class="rtitle">รายงานรายเดือน</div>
-    <div class="rsub">เดือน ${formatThaiMonth(monthStr)}</div>
+    <div class="rsub">${formatDateRangeThai(fromDate, toDate)}</div>
   </div>
 
   <div class="pr-a4-section-title">สรุปรายบุคคล (${owners.length} ราย)</div>
@@ -1042,13 +1044,13 @@ function buildPrintMonthlyHtml(monthStr){
     <tbody>
       ${owners.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td class="num">${m.count}</td><td class="num">${fmtNum(m.weight)}</td><td class="num">${fmtNum(m.net)}</td></tr>`).join('')}
     </tbody>
-    <tfoot><tr><td>รวมทั้งเดือน</td><td class="num">${rep.receipts.length} ใบ</td><td class="num">${fmtNum(rep.totalWeight)}</td><td class="num">${fmtNum(rep.totalNet)}</td></tr></tfoot>
-  </table>` : `<div class="pr-a4-empty">ยังไม่มีใบเสร็จของเดือนนี้</div>`}
+    <tfoot><tr><td>รวมทั้งช่วง</td><td class="num">${rep.receipts.length} ใบ</td><td class="num">${fmtNum(rep.totalWeight)}</td><td class="num">${fmtNum(rep.totalNet)}</td></tr></tfoot>
+  </table>` : `<div class="pr-a4-empty">ยังไม่มีใบเสร็จในช่วงวันที่นี้</div>`}
 
   <div class="pr-a4-bottom-row">
     <div class="pr-a4-bottom-left">
       ${gradeNames.length? `
-      <div class="pr-a4-section-title">สรุปตามเบอร์ทั้งเดือน</div>
+      <div class="pr-a4-section-title">รวมตามเบอร์</div>
       <table class="pr-a4-table">
         <thead><tr><th>เบอร์</th><th class="num">น้ำหนักรวม (กก.)</th><th class="num">จำนวนเงิน (บาท)</th></tr></thead>
         <tbody>
@@ -1062,15 +1064,15 @@ function buildPrintMonthlyHtml(monthStr){
       <tr><td>น้ำหนักรวม</td><td class="val">${fmtNum(rep.totalWeight)} กก.</td></tr>
       <tr><td>รวมเงิน</td><td class="val">${fmtNum(rep.totalAmount)} บาท</td></tr>
       <tr><td>ค่าบริการรวม</td><td class="val">${fmtNum(rep.totalFee)} บาท</td></tr>
-      <tr class="net"><td>สุทธิรวมทั้งเดือน</td><td class="val">${fmtNum(rep.totalNet)} บาท</td></tr>
+      <tr class="net"><td>สุทธิรวมทั้งช่วง</td><td class="val">${fmtNum(rep.totalNet)} บาท</td></tr>
     </table>
   </div>
   <div class="pr-a4-foot">พิมพ์เมื่อ ${formatThaiDate(todayLocalISO())}</div>
   `;
 }
-function doPrintMonthly(monthStr){
+function doPrintMonthly(fromDate, toDate){
   prepareA4ReportPrint();
-  document.getElementById('print-area').innerHTML = buildPrintMonthlyHtml(monthStr);
+  document.getElementById('print-area').innerHTML = buildPrintMonthlyHtml(fromDate, toDate);
   window.print();
 }
 
@@ -1161,16 +1163,16 @@ async function doPrintSelectedA4(ids){
   window.print();
 }
 
-function exportMonthlyCsv(monthStr){
-  const rep = computeMonthly(monthStr);
+function exportMonthlyCsv(fromDate, toDate){
+  const rep = computeRangeReport(fromDate, toDate);
   const owners = Object.values(rep.ownerTotals).sort((a,b)=>b.net-a.net);
-  if(!owners.length){ alert('ไม่มีข้อมูลของเดือนนี้'); return; }
+  if(!owners.length){ alert('ไม่มีข้อมูลในช่วงวันที่นี้'); return; }
   let csv = 'สรุปรายบุคคล\n';
   csv += 'ชื่อเจ้าของสวน,จำนวนครั้ง,น้ำหนักรวม(กก.),สุทธิรวม(บาท)\n';
   owners.forEach(m=>{
     csv += `"${m.name.replace(/"/g,'""')}",${m.count},${m.weight},${m.net}\n`;
   });
-  csv += `รวมทั้งเดือน,${rep.receipts.length},${rep.totalWeight},${rep.totalNet}\n`;
+  csv += `รวมทั้งช่วง,${rep.receipts.length},${rep.totalWeight},${rep.totalNet}\n`;
 
   csv += '\nสรุปตามเบอร์\n';
   csv += 'เบอร์,น้ำหนักรวม(กก.),จำนวนเงิน(บาท)\n';
@@ -1186,7 +1188,8 @@ function exportMonthlyCsv(monthStr){
     const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `รายงานเดือน-${monthStr}.csv`;
+    const stamp = fromDate===toDate ? fromDate : `${fromDate}_ถึง_${toDate}`;
+    a.href = url; a.download = `รายงานเดือน-${stamp}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }catch(e){ alert('ไม่สามารถดาวน์โหลดไฟล์ในอุปกรณ์นี้ได้ ลองใช้ปุ่มพิมพ์รายงานแทน'); }
@@ -1408,8 +1411,8 @@ document.addEventListener('click', async (e)=>{
   }
   if(action==='printDaily'){ doPrintReport(el.dataset.date); return; }
   if(action==='exportCsv'){ exportCsv(el.dataset.date); return; }
-  if(action==='printMonthly'){ doPrintMonthly(el.dataset.month); return; }
-  if(action==='exportMonthlyCsv'){ exportMonthlyCsv(el.dataset.month); return; }
+  if(action==='printMonthly'){ doPrintMonthly(el.dataset.from, el.dataset.to); return; }
+  if(action==='exportMonthlyCsv'){ exportMonthlyCsv(el.dataset.from, el.dataset.to); return; }
   if(action==='exportBackup'){ exportBackup(); return; }
   if(action==='saveCloudUrl'){
     const input = document.getElementById('cloudUrlInput');
@@ -1482,7 +1485,18 @@ document.addEventListener('input', (e)=>{
   if(t.dataset.field==='filterFrom'){ state.filterFrom = t.value; render(); return; }
   if(t.dataset.field==='filterTo'){ state.filterTo = t.value; render(); return; }
   if(t.dataset.action==='reportDate'){ state.reportDate = t.value; render(); return; }
-  if(t.dataset.action==='reportMonth'){ state.reportMonth = t.value; render(); return; }
+  if(t.dataset.action==='reportFrom'){
+    state.reportFrom = t.value;
+    if(state.reportFrom > state.reportTo) state.reportTo = state.reportFrom;
+    render();
+    return;
+  }
+  if(t.dataset.action==='reportTo'){
+    state.reportTo = t.value;
+    if(state.reportTo < state.reportFrom) state.reportFrom = state.reportTo;
+    render();
+    return;
+  }
   if(t.dataset.action==='gradeName'){
     const g = state.config.grades.find(x=>x.id===t.dataset.grade);
     if(g){ g.name = t.value; saveConfig(); }
